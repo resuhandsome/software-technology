@@ -1,90 +1,116 @@
 import pygame
 import random
-import time
 
-# Khởi tạo Pygame
+# Initialize Pygame
 pygame.init()
 
-# Màu sắc
-white = (255, 255, 255)
-black = (0, 0, 0)
-red = (213, 50, 80)
-green = (0, 255, 0)
+# Constants
+WIDTH, HEIGHT = 400, 600
+FPS = 60
+GRAVITY = 0.5
+LIFT = -10
+PIPE_WIDTH = 70
+PIPE_GAP = 150
 
-# Kích thước cửa sổ
-width = 1920
-height = 1080
-screen = pygame.display.set_mode((width, height))
-pygame.display.set_caption('Game Bắn Súng')
+# Colors
+WHITE = (255, 255, 255)
+GREEN = (0, 255, 0)
+BLUE = (0, 0, 255)
+BLACK = (0, 0, 0)
 
-# Tốc độ
-clock = pygame.time.Clock()
-player_speed = 10
-bullet_speed = 15
+# Bird class
+class Bird:
+    def __init__(self):
+        self.x = 50
+        self.y = HEIGHT // 2
+        self.width = 30
+        self.height = 30
+        self.velocity = 0
 
-# Tạo nhân vật
-player_width = 50
-player_height = 50
+    def flap(self):
+        self.velocity += LIFT
 
-# Hàm để vẽ nhân vật
-def draw_player(x, y):
-    pygame.draw.rect(screen, green, [x, y, player_width, player_height])
+    def update(self):
+        self.velocity += GRAVITY
+        self.y += self.velocity
 
-# Hàm để vẽ đạn
-def draw_bullet(bullet_x, bullet_y):
-    pygame.draw.rect(screen, red, [bullet_x, bullet_y, 5, 10])
+    def draw(self, screen):
+        pygame.draw.rect(screen, BLUE, (self.x, self.y, self.width, self.height))
 
-# Hàm để vẽ mục tiêu
-def draw_target(target_x, target_y):
-    pygame.draw.circle(screen, black, (target_x, target_y), 15)
+# Pipe class
+class Pipe:
+    def __init__(self):
+        self.x = WIDTH
+        self.top = random.randint(50, HEIGHT - PIPE_GAP - 50)
+        self.bottom = HEIGHT - (self.top + PIPE_GAP)
+        self.width = PIPE_WIDTH
 
-def game_loop():
-    game_over = False
+    def update(self):
+        self.x -= 3
 
-    # Vị trí nhân vật
-    player_x = width / 2
-    player_y = height - player_height - 10
+    def draw(self, screen):
+        pygame.draw.rect(screen, GREEN, (self.x, 0, self.width, self.top))
+        pygame.draw.rect(screen, GREEN, (self.x, HEIGHT - self.bottom, self.width, self.bottom))
 
-    # Danh sách đạn và mục tiêu
-    bullets = []
-    targets = [[random.randint(20, width - 20), random.randint(20, height // 2)] for _ in range(5)]
+    def collides(self, bird):
+        if (bird.x + bird.width > self.x and bird.x < self.x + self.width):
+            if bird.y < self.top or bird.y + bird.height > HEIGHT - self.bottom:
+                return True
+        return False
 
-    while not game_over:
+# Game loop
+def main():
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    clock = pygame.time.Clock()
+    bird = Bird()
+    pipes = []
+    score = 0
+    running = True
+    spawn_pipe_timer = 0
+
+    while running:
+        screen.fill(WHITE)
+        bird.update()
+        bird.draw(screen)
+
+        # Spawn pipes
+        spawn_pipe_timer += 1
+        if spawn_pipe_timer > 100:
+            pipes.append(Pipe())
+            spawn_pipe_timer = 0
+
+        for pipe in pipes:
+            pipe.update()
+            pipe.draw(screen)
+
+            if pipe.collides(bird):
+                running = False
+
+            if pipe.x + PIPE_WIDTH < 0:
+                pipes.remove(pipe)
+                score += 1
+
+        # Draw score
+        font = pygame.font.Font(None, 36)
+        text = font.render(f'Score: {score}', True, BLACK)
+        screen.blit(text, (10, 10))
+
+        # Check for bird collision with the ground or ceiling
+        if bird.y > HEIGHT or bird.y < 0:
+            running = False
+
+        pygame.display.flip()
+        clock.tick(FPS)
+
+        # Event handling
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                game_over = True
-
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_LEFT] and player_x > 0:
-            player_x -= player_speed
-        if keys[pygame.K_RIGHT] and player_x < width - player_width:
-            player_x += player_speed
-        if keys[pygame.K_SPACE]:
-            bullets.append([player_x + player_width // 2, player_y])
-
-        # Cập nhật vị trí đạn
-        bullets = [[b[0], b[1] - bullet_speed] for b in bullets if b[1] > 0]
-
-        # Kiểm tra va chạm giữa đạn và mục tiêu
-        for bullet in bullets:
-            for target in targets:
-                if target[0] - 15 < bullet[0] < target[0] + 15 and target[1] - 15 < bullet[1] < target[1] + 15:
-                    targets.remove(target)
-                    bullets.remove(bullet)
-                    targets.append([random.randint(20, width - 20), random.randint(20, height // 2)])
-                    break
-
-        # Vẽ mọi thứ lên màn hình
-        screen.fill(white)
-        draw_player(player_x, player_y)
-        for bullet in bullets:
-            draw_bullet(bullet[0], bullet[1])
-        for target in targets:
-            draw_target(target[0], target[1])
-
-        pygame.display.update()
-        clock.tick(60)
+                running = False
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    bird.flap()
 
     pygame.quit()
 
-game_loop()
+if __name__ == "__main__":
+    main()
