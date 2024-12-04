@@ -1,1 +1,1 @@
-Ngô Trương Tín đẹp trai nhất thể giới
+Ngô Trương Tín đẹp trai nhất
